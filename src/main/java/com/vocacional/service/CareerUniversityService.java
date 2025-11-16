@@ -6,7 +6,6 @@ import com.vocacional.model.University;
 import com.vocacional.model.ChatSession;
 import com.vocacional.model.Message;
 import com.vocacional.repository.ChatSessionRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -15,11 +14,14 @@ import java.util.List;
 @Service
 public class CareerUniversityService {
 
-    @Autowired
-    private ChatSessionRepository chatSessionRepository;
+    private final ChatSessionRepository chatSessionRepository;
 
-    @Autowired
-    private OpenRouterService openRouterService;
+    private final OpenRouterService openRouterService;
+
+    public CareerUniversityService(ChatSessionRepository chatSessionRepository, OpenRouterService openRouterService) {
+        this.chatSessionRepository = chatSessionRepository;
+        this.openRouterService = openRouterService;
+    }
 
     private String CAREER_PROMPT = """
         Hasta ahora ¿Qué carreras son más tentativas para el usuario?, realizar un listado de cada carrera. 

@@ -2,7 +2,6 @@ package com.vocacional;
 
 import com.vocacional.model.User;
 import com.vocacional.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -19,8 +18,11 @@ public class TallerWebApplication {
 		SpringApplication.run(TallerWebApplication.class, args);
 	}
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
+
+    public TallerWebApplication(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Bean
     @Profile("!prod") // Solo en desarrollo

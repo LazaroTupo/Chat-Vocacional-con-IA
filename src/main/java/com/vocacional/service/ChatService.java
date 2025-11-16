@@ -4,8 +4,7 @@ import com.vocacional.model.ChatSession;
 import com.vocacional.model.Message;
 import com.vocacional.repository.ChatSessionRepository;
 import com.vocacional.dto.ChatResponse;
-import com.vocacional.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+// userRepository removed because it is unused in this service
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -16,18 +15,21 @@ import java.util.*;
 @Service
 public class ChatService {
 
-    @Autowired
-    private ChatSessionRepository chatSessionRepository;
+    private final ChatSessionRepository chatSessionRepository;
 
-    @Autowired
-    private UserRepository userRepository;
 
-    @Autowired
-    private OpenRouterService openRouterService;
+    private final OpenRouterService openRouterService;
 
     // Configuración por defecto - fácil de cambiar
-    @Value("${app.llm.default-model}")
-    private String defaultModel;
+    private final String defaultModel;
+
+    public ChatService(ChatSessionRepository chatSessionRepository,
+                       OpenRouterService openRouterService,
+                       @Value("${app.llm.default-model}") String defaultModel) {
+        this.chatSessionRepository = chatSessionRepository;
+        this.openRouterService = openRouterService;
+        this.defaultModel = defaultModel;
+    }
 
 
     public ChatResponse processMessage(String userMessage, String userId) {

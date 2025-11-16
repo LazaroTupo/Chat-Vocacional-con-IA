@@ -8,7 +8,6 @@ import com.vocacional.model.User;
 import com.vocacional.repository.UserRepository;
 import com.vocacional.service.CareerUniversityService;
 import com.vocacional.service.ChatService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,14 +20,17 @@ import java.util.List;
 @RequestMapping("/api/chat")
 public class ChatController {
 
-    @Autowired
-    private ChatService chatService;
+        private final ChatService chatService;
 
-    @Autowired
-    private UserRepository userRepository;
+        private final UserRepository userRepository;
 
-    @Autowired
-    private CareerUniversityService careerUniversityService;
+        private final CareerUniversityService careerUniversityService;
+
+        public ChatController(ChatService chatService, UserRepository userRepository, CareerUniversityService careerUniversityService) {
+                this.chatService = chatService;
+                this.userRepository = userRepository;
+                this.careerUniversityService = careerUniversityService;
+        }
 
     @PostMapping("/message")
     public ResponseEntity<ChatResponse> sendMessage(
