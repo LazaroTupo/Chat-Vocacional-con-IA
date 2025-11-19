@@ -19,6 +19,4 @@ public interface CareerRepository extends MongoRepository<Career, String> {
     // Buscar por keywords
     List<Career> findByKeywordsContaining(String keyword);
 
-    // Buscar todas las carreras ordenadas por nombre
-    List<Career> findAllByOrderByNombreAsc();
 }

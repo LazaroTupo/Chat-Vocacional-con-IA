@@ -2,9 +2,7 @@ package com.vocacional.service;
 
 import com.vocacional.dto.CareerResponse;
 import com.vocacional.dto.UniversityResponse;
-import com.vocacional.model.Career;
 import com.vocacional.dto.CareerUniversityResponse;
-import com.vocacional.model.University;
 import com.vocacional.model.ChatSession;
 import com.vocacional.model.Message;
 import com.vocacional.repository.ChatSessionRepository;
@@ -12,18 +10,16 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class CareerUniversityService {
 
     private final ChatSessionRepository chatSessionRepository;
-
     private final OpenRouterService openRouterService;
-
     private final ImageSearchService imageSearchService;
 
-    private final String CAREER_PROMPT = """
+    // Constantes para el prompt
+    private static final String CAREER_PROMPT = """
         Hasta ahora ¿Qué carreras son más tentativas para el usuario?, realizar un listado de cada carrera. 
         También en base a la ubicación descrita por el usuario ¿Qué universidades cerca de esa ubicación tienen disponibles esas carreras?, 
         realizar un listado de cada universidad.
@@ -49,46 +45,49 @@ public class CareerUniversityService {
         - Usar nombres de carreras y universidades comunes y reconocidas
         """;
 
-    public CareerUniversityService(ChatSessionRepository chatSessionRepository, OpenRouterService openRouterService, ImageSearchService imageSearchService) {
+    // Constantes para parsing
+    private static final String UNIVERSITIES_SECTION_HEADER = "UNIVERSIDADES RECOMENDADAS:";
+    private static final String CAREERS_SECTION_HEADER = "CARRERAS RECOMENDADAS:";
+    private static final String LINE_PREFIX = "-";
+    private static final String DEFAULT_PROXIMITY = "No especificado";
+    private static final String DEFAULT_LOCATION = "Ubicación no especificada";
+
+    public CareerUniversityService(ChatSessionRepository chatSessionRepository,
+                                   OpenRouterService openRouterService,
+                                   ImageSearchService imageSearchService) {
         this.chatSessionRepository = chatSessionRepository;
         this.openRouterService = openRouterService;
         this.imageSearchService = imageSearchService;
     }
 
     public CareerUniversityResponse getCareersAndUniversities(String userId) {
-        // Obtener la sesión activa del usuario
-        ChatSession session = chatSessionRepository
-                .findFirstByUserIdOrderByUpdatedAtDesc(userId)
-                .orElseThrow(() -> new RuntimeException("No se encontró sesión activa para el usuario"));
-
-        // Obtener el historial de conversación
+        ChatSession session = getActiveUserSession(userId);
         List<Message> conversationHistory = session.getMessages();
 
-        // Obtener respuesta del LLM
         String llmResponse = openRouterService.getCareerUniversityRecommendation(CAREER_PROMPT, conversationHistory);
 
-        // Parsear la respuesta para extraer carreras y universidades
         CareerUniversityResponse response = parseLLMResponse(llmResponse);
         response.setSessionId(session.getId());
 
         return response;
     }
 
+    private ChatSession getActiveUserSession(String userId) {
+        return chatSessionRepository
+                .findFirstByUserIdOrderByUpdatedAtDesc(userId)
+                .orElseThrow(() -> new RuntimeException("No se encontró sesión activa para el usuario"));
+    }
+
     private CareerUniversityResponse parseLLMResponse(String llmResponse) {
-        List<CareerResponse> careers = new ArrayList<>();
-        List<UniversityResponse> universities = new ArrayList<>();
-
-        if (llmResponse != null && !llmResponse.isEmpty()) {
-            String[] sections = llmResponse.split("UNIVERSIDADES RECOMENDADAS:");
-
-            if (sections.length > 0) {
-                careers = parseCareersSection(sections[0]);
-            }
-
-            if (sections.length > 1) {
-                universities = parseUniversitiesSection(sections[1]);
-            }
+        if (llmResponse == null || llmResponse.trim().isEmpty()) {
+            return new CareerUniversityResponse(new ArrayList<>(), new ArrayList<>(), null);
         }
+
+        String[] sections = llmResponse.split(UNIVERSITIES_SECTION_HEADER);
+
+        List<CareerResponse> careers = parseCareersSection(sections[0]);
+        List<UniversityResponse> universities = sections.length > 1 ?
+                parseUniversitiesSection(sections[1]) : new ArrayList<>();
 
         return new CareerUniversityResponse(careers, universities, null);
     }
@@ -98,32 +97,8 @@ public class CareerUniversityService {
         String[] lines = careersSection.split("\n");
 
         for (String line : lines) {
-            if (line.trim().startsWith("-") && line.contains(":")) {
-                // Formato: - [Nombre]: [Descripción] - [Razón]
-                String content = line.trim().substring(1).trim(); // Remover el "-"
-                String[] parts = content.split(":", 2);
-
-                if (parts.length >= 2) {
-                    String careerName = parts[0].trim();
-                    String rest = parts[1].trim();
-
-                    // Separar descripción y razón
-                    String[] descAndReason = rest.split(" - ", 2);
-                    String description = descAndReason[0].trim();
-                    String reason = descAndReason.length > 1 ? descAndReason[1].trim() : "Recomendación basada en el perfil";
-
-                    // Buscar imagen para la carrera
-                    String imageUrl = imageSearchService.findCareerImage(careerName);
-
-                    // Buscar información adicional de la carrera
-                    Optional<Career> careerInfo = imageSearchService.findCareerInfo(careerName);
-                    List<String> keywords = careerInfo.map(Career::getKeywords).orElse(List.of());
-
-                    CareerResponse careerResponse = new CareerResponse(careerName, description, reason, imageUrl);
-                    careerResponse.setKeywords(keywords);
-
-                    careers.add(careerResponse);
-                }
+            if (isValidResponseLine(line)) {
+                parseCareerLine(line).ifPresent(careers::add);
             }
         }
 
@@ -135,48 +110,97 @@ public class CareerUniversityService {
         String[] lines = universitiesSection.split("\n");
 
         for (String line : lines) {
-            if (line.trim().startsWith("-") && line.contains(":")) {
-                // Formato: - [Nombre] - [Ubicación]: Ofrece [carreras] - [Proximidad]
-                String content = line.trim().substring(1).trim(); // Remover el "-"
-
-                // Buscar el último " - " para separar proximidad
-                int lastDashIndex = content.lastIndexOf(" - ");
-                String proximity = "No especificado";
-                String mainContent = content;
-
-                if (lastDashIndex != -1) {
-                    proximity = content.substring(lastDashIndex + 3).trim();
-                    mainContent = content.substring(0, lastDashIndex).trim();
-                }
-
-                // Separar nombre/ubicación de carreras ofrecidas
-                String[] nameLocationAndCareers = mainContent.split(":", 2);
-                if (nameLocationAndCareers.length >= 2) {
-                    String nameLocation = nameLocationAndCareers[0].trim();
-                    String careersOffered = nameLocationAndCareers[1].replace("Ofrece", "").trim();
-
-                    // Separar nombre y ubicación
-                    String[] nameAndLocation = nameLocation.split(" - ", 2);
-                    String universityName = nameAndLocation[0].trim();
-                    String location = nameAndLocation.length > 1 ? nameAndLocation[1].trim() : "Ubicación no especificada";
-
-                    // Buscar imagen para la universidad
-                    String imageUrl = imageSearchService.findUniversityImage(universityName);
-
-                    // Buscar información adicional de la universidad
-                    Optional<University> universityInfo = imageSearchService.findUniversityInfo(universityName);
-                    String country = universityInfo.map(University::getPais).orElse("País no especificado");
-
-                    UniversityResponse universityResponse = new UniversityResponse(
-                            universityName, location, careersOffered, proximity, imageUrl
-                    );
-                    universityResponse.setCountry(country);
-
-                    universities.add(universityResponse);
-                }
+            if (isValidResponseLine(line)) {
+                parseUniversityLine(line).ifPresent(universities::add);
             }
         }
 
         return universities;
+    }
+
+    private boolean isValidResponseLine(String line) {
+        return line.trim().startsWith(LINE_PREFIX) && line.contains(":");
+    }
+
+    private java.util.Optional<CareerResponse> parseCareerLine(String line) {
+        try {
+            String content = extractLineContent(line);
+            String[] parts = content.split(":", 2);
+
+            if (parts.length < 2) {
+                return java.util.Optional.empty();
+            }
+
+            String careerName = parts[0].trim();
+            String rest = parts[1].trim();
+
+            String[] descAndReason = rest.split(" - ", 2);
+            String description = descAndReason[0].trim();
+            String reason = descAndReason.length > 1 ? descAndReason[1].trim() : "Recomendación basada en el perfil";
+
+            String imageUrl = imageSearchService.findCareerImage(careerName);
+            List<String> keywords = imageSearchService.findCareerInfo(careerName)
+                    .map(career -> career.getKeywords())
+                    .orElse(List.of());
+
+            CareerResponse careerResponse = new CareerResponse(careerName, description, reason, imageUrl);
+            careerResponse.setKeywords(keywords);
+
+            return java.util.Optional.of(careerResponse);
+
+        } catch (Exception e) {
+            // Log the error and skip this line
+            return java.util.Optional.empty();
+        }
+    }
+
+    private java.util.Optional<UniversityResponse> parseUniversityLine(String line) {
+        try {
+            String content = extractLineContent(line);
+
+            // Separar proximidad
+            int lastDashIndex = content.lastIndexOf(" - ");
+            String proximity = DEFAULT_PROXIMITY;
+            String mainContent = content;
+
+            if (lastDashIndex != -1) {
+                proximity = content.substring(lastDashIndex + 3).trim();
+                mainContent = content.substring(0, lastDashIndex).trim();
+            }
+
+            // Separar nombre/ubicación de carreras ofrecidas
+            String[] nameLocationAndCareers = mainContent.split(":", 2);
+            if (nameLocationAndCareers.length < 2) {
+                return java.util.Optional.empty();
+            }
+
+            String nameLocation = nameLocationAndCareers[0].trim();
+            String careersOffered = nameLocationAndCareers[1].replace("Ofrece", "").trim();
+
+            // Separar nombre y ubicación
+            String[] nameAndLocation = nameLocation.split(" - ", 2);
+            String universityName = nameAndLocation[0].trim();
+            String location = nameAndLocation.length > 1 ? nameAndLocation[1].trim() : DEFAULT_LOCATION;
+
+            String imageUrl = imageSearchService.findUniversityImage(universityName);
+            String country = imageSearchService.findUniversityInfo(universityName)
+                    .map(university -> university.getPais())
+                    .orElse("País no especificado");
+
+            UniversityResponse universityResponse = new UniversityResponse(
+                    universityName, location, careersOffered, proximity, imageUrl
+            );
+            universityResponse.setCountry(country);
+
+            return java.util.Optional.of(universityResponse);
+
+        } catch (Exception e) {
+            // Log the error and skip this line
+            return java.util.Optional.empty();
+        }
+    }
+
+    private String extractLineContent(String line) {
+        return line.trim().substring(1).trim(); // Remover el "-"
     }
 }

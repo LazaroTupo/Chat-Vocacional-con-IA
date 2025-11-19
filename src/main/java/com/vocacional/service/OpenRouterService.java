@@ -15,14 +15,17 @@ import java.util.List;
 public class OpenRouterService {
 
     private final RestTemplate restTemplate;
-    private final int MAX_CONTEXT_TOKENS = 4000;
-    private final int MAX_RESPONSE_TOKENS = 500;
     private final String apiKey;
     private final String apiUrl = "https://openrouter.ai/api/v1/chat/completions";
 
+    // Constantes de configuración
+    private static final int MAX_CONTEXT_TOKENS = 4000;
+    private static final int MAX_RESPONSE_TOKENS = 500;
+    private static final int MAX_CAREER_RESPONSE_TOKENS = 800;
+    private static final double TOKENS_PER_WORD = 1.3;
+
     @Value("${app.llm.default-model}")
     private String defaultModel;
-
 
     public OpenRouterService(@Value("${openrouter.api.key}") String apiKey) {
         this.apiKey = apiKey;
@@ -31,34 +34,50 @@ public class OpenRouterService {
 
     public String getVocationalCoachResponse(String userMessage, String model, List<Message> conversationHistory) {
         List<OpenRouterRequest.Message> messages = buildMessagesWithHistory(userMessage, conversationHistory);
+        return callOpenRouterAPI(model, messages, MAX_RESPONSE_TOKENS);
+    }
 
-        OpenRouterRequest request = new OpenRouterRequest();
-        request.setModel(model);
-        request.setMessages(messages);
-        request.setMax_tokens(MAX_RESPONSE_TOKENS);
+    public String getCareerUniversityRecommendation(String prompt, List<Message> conversationHistory) {
+        List<OpenRouterRequest.Message> messages = buildMessagesForCareerAnalysis(prompt, conversationHistory);
+        return callOpenRouterAPI(defaultModel, messages, MAX_CAREER_RESPONSE_TOKENS);
+    }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + apiKey);
-
-        HttpEntity<OpenRouterRequest> entity = new HttpEntity<>(request, headers);
+    private String callOpenRouterAPI(String model, List<OpenRouterRequest.Message> messages, int maxTokens) {
+        OpenRouterRequest request = createRequest(model, messages, maxTokens);
+        HttpEntity<OpenRouterRequest> entity = createHttpEntity(request);
 
         try {
             ResponseEntity<OpenRouterResponse> response = restTemplate.exchange(
-                    apiUrl,
-                    HttpMethod.POST,
-                    entity,
-                    OpenRouterResponse.class
+                    apiUrl, HttpMethod.POST, entity, OpenRouterResponse.class
             );
 
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                return response.getBody().getChoices().get(0).getMessage().getContent();
-            } else {
-                throw new RuntimeException("Error en la respuesta de OpenRouter: " + response.getStatusCode());
-            }
+            return extractResponseContent(response);
 
         } catch (Exception e) {
             throw new RuntimeException("Error calling OpenRouter API: " + e.getMessage(), e);
+        }
+    }
+
+    private OpenRouterRequest createRequest(String model, List<OpenRouterRequest.Message> messages, int maxTokens) {
+        OpenRouterRequest request = new OpenRouterRequest();
+        request.setModel(model);
+        request.setMessages(messages);
+        request.setMax_tokens(maxTokens);
+        return request;
+    }
+
+    private HttpEntity<OpenRouterRequest> createHttpEntity(OpenRouterRequest request) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + apiKey);
+        return new HttpEntity<>(request, headers);
+    }
+
+    private String extractResponseContent(ResponseEntity<OpenRouterResponse> response) {
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            return response.getBody().getChoices().get(0).getMessage().getContent();
+        } else {
+            throw new RuntimeException("Error en la respuesta de OpenRouter: " + response.getStatusCode());
         }
     }
 
@@ -71,14 +90,14 @@ public class OpenRouterService {
 
         int estimatedTokens = estimateTokens(systemPrompt);
 
-        // Agregar historial de conversación (excluyendo el último mensaje del usuario que acabamos de agregar)
+        // Agregar historial de conversación
         if (conversationHistory != null && conversationHistory.size() > 1) {
             List<Message> recentHistory = getRecentMessagesWithinLimit(
                     conversationHistory, MAX_CONTEXT_TOKENS - MAX_RESPONSE_TOKENS - estimatedTokens
             );
 
             for (Message msg : recentHistory) {
-                String role = msg.getType() == Message.MessageType.USER ? "user" : "assistant";
+                String role = getRoleFromMessageType(msg.getType());
                 messages.add(createMessage(role, msg.getContent()));
                 estimatedTokens += estimateTokens(msg.getContent());
             }
@@ -88,6 +107,32 @@ public class OpenRouterService {
         messages.add(createMessage("user", newUserMessage));
 
         return messages;
+    }
+
+    private List<OpenRouterRequest.Message> buildMessagesForCareerAnalysis(String prompt, List<Message> conversationHistory) {
+        List<OpenRouterRequest.Message> messages = new ArrayList<>();
+
+        String systemPrompt = buildCareerAnalysisSystemPrompt();
+        messages.add(createMessage("system", systemPrompt));
+
+        // Agregar historial de conversación reciente
+        if (conversationHistory != null && !conversationHistory.isEmpty()) {
+            int startIndex = Math.max(0, conversationHistory.size() - 10); // Últimos 10 mensajes
+            for (int i = startIndex; i < conversationHistory.size(); i++) {
+                Message msg = conversationHistory.get(i);
+                String role = getRoleFromMessageType(msg.getType());
+                messages.add(createMessage(role, msg.getContent()));
+            }
+        }
+
+        // Agregar el prompt específico para carreras/universidades
+        messages.add(createMessage("user", prompt));
+
+        return messages;
+    }
+
+    private String getRoleFromMessageType(Message.MessageType type) {
+        return type == Message.MessageType.USER ? "user" : "assistant";
     }
 
     private OpenRouterRequest.Message createMessage(String role, String content) {
@@ -125,6 +170,14 @@ public class OpenRouterService {
             """;
     }
 
+    private String buildCareerAnalysisSystemPrompt() {
+        return """
+            Eres un especialista en orientación vocacional y conocimiento de universidades. 
+            Analiza la conversación y proporciona recomendaciones específicas de carreras y universidades.
+            Mantén el formato exacto solicitado y sé preciso en tus recomendaciones.
+            """;
+    }
+
     private List<Message> getRecentMessagesWithinLimit(List<Message> allMessages, int tokenLimit) {
         List<Message> recentMessages = new ArrayList<>();
         int totalTokens = 0;
@@ -147,69 +200,7 @@ public class OpenRouterService {
 
     private int estimateTokens(String text) {
         if (text == null) return 0;
-        // Estimación conservadora: ~1.3 tokens por palabra en español
         int wordCount = text.split("\\s+").length;
-        return (int) Math.ceil(wordCount * 1.3);
-    }
-
-    public String getCareerUniversityRecommendation(String prompt, List<Message> conversationHistory) {
-
-        List<OpenRouterRequest.Message> messages = buildMessagesForCareerAnalysis(prompt, conversationHistory);
-
-        OpenRouterRequest request = new OpenRouterRequest();
-        request.setModel(defaultModel);
-        request.setMessages(messages);
-        request.setMax_tokens(800); // Más tokens para listados detallados
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + apiKey);
-
-        HttpEntity<OpenRouterRequest> entity = new HttpEntity<>(request, headers);
-
-        try {
-            ResponseEntity<OpenRouterResponse> response = restTemplate.exchange(
-                    apiUrl, HttpMethod.POST, entity, OpenRouterResponse.class
-            );
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                return response.getBody().getChoices().get(0).getMessage().getContent();
-            } else {
-                throw new RuntimeException("Error en OpenRouter: " + response.getStatusCode());
-            }
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error calling OpenRouter API: " + e.getMessage(), e);
-        }
-    }
-
-    private List<OpenRouterRequest.Message> buildMessagesForCareerAnalysis(
-            String prompt, List<Message> conversationHistory) {
-
-        List<OpenRouterRequest.Message> messages = new ArrayList<>();
-
-        // System prompt específico para análisis de carreras
-        String systemPrompt = """
-            Eres un especialista en orientación vocacional y conocimiento de universidades. 
-            Analiza la conversación y proporciona recomendaciones específicas de carreras y universidades.
-            Mantén el formato exacto solicitado y sé preciso en tus recomendaciones.
-            """;
-
-        messages.add(createMessage("system", systemPrompt));
-
-        // Agregar historial de conversación (sin el último mensaje si es muy reciente)
-        if (conversationHistory != null && !conversationHistory.isEmpty()) {
-            int startIndex = Math.max(0, conversationHistory.size() - 10); // Últimos 10 mensajes
-            for (int i = startIndex; i < conversationHistory.size(); i++) {
-                Message msg = conversationHistory.get(i);
-                String role = msg.getType() == Message.MessageType.USER ? "user" : "assistant";
-                messages.add(createMessage(role, msg.getContent()));
-            }
-        }
-
-        // Agregar el prompt específico para carreras/universidades
-        messages.add(createMessage("user", prompt));
-
-        return messages;
+        return (int) Math.ceil(wordCount * TOKENS_PER_WORD);
     }
 }
