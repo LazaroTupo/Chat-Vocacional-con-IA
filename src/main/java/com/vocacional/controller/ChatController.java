@@ -1,8 +1,6 @@
 package com.vocacional.controller;
 
-import com.vocacional.dto.CareerUniversityResponse;
-import com.vocacional.dto.ChatRequest;
-import com.vocacional.dto.ChatResponse;
+import com.vocacional.dto.*;
 import com.vocacional.model.ChatSession;
 import com.vocacional.model.User;
 import com.vocacional.repository.UserRepository;
@@ -13,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -20,17 +19,17 @@ import java.util.List;
 @RequestMapping("/api/chat")
 public class ChatController {
 
-        private final ChatService chatService;
+    private final ChatService chatService;
 
-        private final UserRepository userRepository;
+    private final UserRepository userRepository;
 
-        private final CareerUniversityService careerUniversityService;
+    private final CareerUniversityService careerUniversityService;
 
-        public ChatController(ChatService chatService, UserRepository userRepository, CareerUniversityService careerUniversityService) {
-                this.chatService = chatService;
-                this.userRepository = userRepository;
-                this.careerUniversityService = careerUniversityService;
-        }
+    public ChatController(ChatService chatService, UserRepository userRepository, CareerUniversityService careerUniversityService) {
+        this.chatService = chatService;
+        this.userRepository = userRepository;
+        this.careerUniversityService = careerUniversityService;
+    }
 
     @PostMapping("/message")
     public ResponseEntity<ChatResponse> sendMessage(
@@ -48,7 +47,6 @@ public class ChatController {
         return ResponseEntity.ok(response);
     }
 
-    // Este endpoint en sí extrae la actual sesión, pero por ahora será usado para obtener el historial
     @GetMapping("/session")
     public ResponseEntity<ChatSession> getCurrentSession(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByUsername(userDetails.getUsername())
@@ -60,8 +58,7 @@ public class ChatController {
     }
 
     @GetMapping("/careers-and-universities")
-    public ResponseEntity<CareerUniversityResponse> getCareersAndUniversities(
-            @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<CareerUniversityResponse> getCareersAndUniversities(@AuthenticationPrincipal UserDetails userDetails) {
 
         User user = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -79,4 +76,21 @@ public class ChatController {
                     ));
         }
     }
+
+    @DeleteMapping("/session")
+    public ResponseEntity<Void> clearCurrentSession(
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        boolean cleared = chatService.deleteSession(user.getId());
+
+        if (!cleared) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay mensajes para borrar en la sesión actual");
+        }
+
+        return ResponseEntity.ok().build();
+    }
+
 }

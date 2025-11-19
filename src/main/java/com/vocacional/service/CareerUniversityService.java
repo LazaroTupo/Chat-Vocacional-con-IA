@@ -1,5 +1,7 @@
 package com.vocacional.service;
 
+import com.vocacional.dto.CareerResponse;
+import com.vocacional.dto.UniversityResponse;
 import com.vocacional.model.Career;
 import com.vocacional.dto.CareerUniversityResponse;
 import com.vocacional.model.University;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class CareerUniversityService {
@@ -18,12 +21,9 @@ public class CareerUniversityService {
 
     private final OpenRouterService openRouterService;
 
-    public CareerUniversityService(ChatSessionRepository chatSessionRepository, OpenRouterService openRouterService) {
-        this.chatSessionRepository = chatSessionRepository;
-        this.openRouterService = openRouterService;
-    }
+    private final ImageSearchService imageSearchService;
 
-    private String CAREER_PROMPT = """
+    private final String CAREER_PROMPT = """
         Hasta ahora ¿Qué carreras son más tentativas para el usuario?, realizar un listado de cada carrera. 
         También en base a la ubicación descrita por el usuario ¿Qué universidades cerca de esa ubicación tienen disponibles esas carreras?, 
         realizar un listado de cada universidad.
@@ -34,17 +34,26 @@ public class CareerUniversityService {
         - [Nombre de carrera 1]: [Breve descripción] - [Razón de la recomendación]
         - [Nombre de carrera 2]: [Breve descripción] - [Razón de la recomendación]
         - [Nombre de carrera 3]: [Breve descripción] - [Razón de la recomendación]
+        - ...
         
         UNIVERSIDADES RECOMENDADAS:
         - [Nombre universidad 1] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
         - [Nombre universidad 2] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
         - [Nombre universidad 3] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
+        - ...
         
         IMPORTANTE: 
         - Solo listar carreras y universidades basadas en la conversación anterior
-        - Si no hay suficiente información sobre ubicación, sugerir universidades genéricas
+        - Si no hay suficiente información sobre ubicación, sugerir universidades y carreras genéricas
         - Mantener el formato exacto especificado
+        - Usar nombres de carreras y universidades comunes y reconocidas
         """;
+
+    public CareerUniversityService(ChatSessionRepository chatSessionRepository, OpenRouterService openRouterService, ImageSearchService imageSearchService) {
+        this.chatSessionRepository = chatSessionRepository;
+        this.openRouterService = openRouterService;
+        this.imageSearchService = imageSearchService;
+    }
 
     public CareerUniversityResponse getCareersAndUniversities(String userId) {
         // Obtener la sesión activa del usuario
@@ -66,8 +75,8 @@ public class CareerUniversityService {
     }
 
     private CareerUniversityResponse parseLLMResponse(String llmResponse) {
-        List<Career> careers = new ArrayList<>();
-        List<University> universities = new ArrayList<>();
+        List<CareerResponse> careers = new ArrayList<>();
+        List<UniversityResponse> universities = new ArrayList<>();
 
         if (llmResponse != null && !llmResponse.isEmpty()) {
             String[] sections = llmResponse.split("UNIVERSIDADES RECOMENDADAS:");
@@ -84,8 +93,8 @@ public class CareerUniversityService {
         return new CareerUniversityResponse(careers, universities, null);
     }
 
-    private List<Career> parseCareersSection(String careersSection) {
-        List<Career> careers = new ArrayList<>();
+    private List<CareerResponse> parseCareersSection(String careersSection) {
+        List<CareerResponse> careers = new ArrayList<>();
         String[] lines = careersSection.split("\n");
 
         for (String line : lines) {
@@ -103,7 +112,17 @@ public class CareerUniversityService {
                     String description = descAndReason[0].trim();
                     String reason = descAndReason.length > 1 ? descAndReason[1].trim() : "Recomendación basada en el perfil";
 
-                    careers.add(new Career(careerName, description, reason));
+                    // Buscar imagen para la carrera
+                    String imageUrl = imageSearchService.findCareerImage(careerName);
+
+                    // Buscar información adicional de la carrera
+                    Optional<Career> careerInfo = imageSearchService.findCareerInfo(careerName);
+                    List<String> keywords = careerInfo.map(Career::getKeywords).orElse(List.of());
+
+                    CareerResponse careerResponse = new CareerResponse(careerName, description, reason, imageUrl);
+                    careerResponse.setKeywords(keywords);
+
+                    careers.add(careerResponse);
                 }
             }
         }
@@ -111,8 +130,8 @@ public class CareerUniversityService {
         return careers;
     }
 
-    private List<University> parseUniversitiesSection(String universitiesSection) {
-        List<University> universities = new ArrayList<>();
+    private List<UniversityResponse> parseUniversitiesSection(String universitiesSection) {
+        List<UniversityResponse> universities = new ArrayList<>();
         String[] lines = universitiesSection.split("\n");
 
         for (String line : lines) {
@@ -138,10 +157,22 @@ public class CareerUniversityService {
 
                     // Separar nombre y ubicación
                     String[] nameAndLocation = nameLocation.split(" - ", 2);
-                    String name = nameAndLocation[0].trim();
+                    String universityName = nameAndLocation[0].trim();
                     String location = nameAndLocation.length > 1 ? nameAndLocation[1].trim() : "Ubicación no especificada";
 
-                    universities.add(new University(name, location, careersOffered, proximity));
+                    // Buscar imagen para la universidad
+                    String imageUrl = imageSearchService.findUniversityImage(universityName);
+
+                    // Buscar información adicional de la universidad
+                    Optional<University> universityInfo = imageSearchService.findUniversityInfo(universityName);
+                    String country = universityInfo.map(University::getPais).orElse("País no especificado");
+
+                    UniversityResponse universityResponse = new UniversityResponse(
+                            universityName, location, careersOffered, proximity, imageUrl
+                    );
+                    universityResponse.setCountry(country);
+
+                    universities.add(universityResponse);
                 }
             }
         }

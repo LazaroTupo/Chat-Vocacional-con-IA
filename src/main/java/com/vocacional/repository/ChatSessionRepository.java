@@ -9,10 +9,6 @@ import java.util.Optional;
 
 @Repository
 public interface ChatSessionRepository extends MongoRepository<ChatSession, String> {
-
-    // Encontrar sesiones por usuario
-    List<ChatSession> findByUserIdOrderByUpdatedAtDesc(String userId);
-
     // Encontrar sesión activa más reciente
     Optional<ChatSession> findFirstByUserIdOrderByUpdatedAtDesc(String userId);
 }

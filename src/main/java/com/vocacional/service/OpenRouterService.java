@@ -40,8 +40,6 @@ public class OpenRouterService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer " + apiKey);
-        // headers.set("HTTP-Referer", "https://yourdomain.com"); // Opcional pero recomendado
-        headers.set("X-Title", "Vocational Coach"); // Opcional
 
         HttpEntity<OpenRouterRequest> entity = new HttpEntity<>(request, headers);
 
@@ -166,8 +164,6 @@ public class OpenRouterService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer " + apiKey);
-        headers.set("HTTP-Referer", "https://vocacional-app.com");
-        headers.set("X-Title", "Career University Advisor");
 
         HttpEntity<OpenRouterRequest> entity = new HttpEntity<>(request, headers);
 

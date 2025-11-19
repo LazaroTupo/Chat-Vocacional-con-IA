@@ -9,19 +9,20 @@ import java.util.List;
 
 @Data
 public class CareerUniversityResponse {
-    private List<Career> careers;
-    private List<University> universities;
+    private List<CareerResponse> careers;
+    private List<UniversityResponse> universities;
     private String sessionId;
     private LocalDateTime generatedAt;
 
     // Constructores
-    public CareerUniversityResponse() {}
+    public CareerUniversityResponse() {
+        this.generatedAt = LocalDateTime.now();
+    }
 
-    public CareerUniversityResponse(List<Career> careers, List<University> universities, String sessionId) {
+    public CareerUniversityResponse(List<CareerResponse> careers, List<UniversityResponse> universities, String sessionId) {
+        this();
         this.careers = careers;
         this.universities = universities;
         this.sessionId = sessionId;
-        this.generatedAt = LocalDateTime.now();
     }
 }
-

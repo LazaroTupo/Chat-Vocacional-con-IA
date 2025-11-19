@@ -18,9 +18,19 @@ public class User {
     private String username;
 
     private String password;
+    @Indexed(unique = true)
     private String email;
     private LocalDateTime createdAt;
 
     // Constructor vacío para MongoDB
-    public User() {}
+    public User() {
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public User(String username, String password, String email) {
+        this();
+        this.username = username;
+        this.password = password;
+        this.email = email;
+    }
 }

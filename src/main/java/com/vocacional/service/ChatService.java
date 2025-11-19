@@ -4,7 +4,6 @@ import com.vocacional.model.ChatSession;
 import com.vocacional.model.Message;
 import com.vocacional.repository.ChatSessionRepository;
 import com.vocacional.dto.ChatResponse;
-// userRepository removed because it is unused in this service
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -16,7 +15,6 @@ import java.util.*;
 public class ChatService {
 
     private final ChatSessionRepository chatSessionRepository;
-
 
     private final OpenRouterService openRouterService;
 
@@ -90,4 +88,13 @@ public class ChatService {
         return chatSessionRepository.save(newSession);
     }
 
+    public boolean deleteSession(String userId) {
+        try {
+            ChatSession chatSession = getOrCreateActiveSession(userId);
+            chatSessionRepository.delete(chatSession);
+            return true;
+        } catch (Exception e) {
+            throw new RuntimeException("Error al borrar la sesión: " + e.getMessage(), e);
+        }
+    }
 }
