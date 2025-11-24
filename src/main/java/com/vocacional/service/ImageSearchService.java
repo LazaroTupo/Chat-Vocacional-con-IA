@@ -13,120 +13,182 @@ import java.util.Optional;
 public class ImageSearchService {
 
     private final CareerRepository careerRepository;
-
     private final UniversityRepository universityRepository;
 
-    /**
-     * Busca la imagen de una carrera por nombre o similitud
-     */
+    private static final String DEFAULT_CAREER_IMAGE = "https://images.pexels.com/photos/356030/pexels-photo-356030.jpeg";
+    private static final String DEFAULT_UNIVERSITY_IMAGE = "https://images.pexels.com/photos/267885/pexels-photo-267885.jpeg";
+
     public ImageSearchService(CareerRepository careerRepository, UniversityRepository universityRepository) {
         this.careerRepository = careerRepository;
         this.universityRepository = universityRepository;
     }
 
-    public String findCareerImage(String careerName) {
-        if (careerName == null || careerName.trim().isEmpty()) {
-            return getDefaultCareerImage();
-        }
-
-        // 1. Buscar por nombre exacto
-        Optional<Career> exactMatch = careerRepository.findByNombre(careerName.trim());
-        if (exactMatch.isPresent() && exactMatch.get().getImagenUrl() != null) {
-            return exactMatch.get().getImagenUrl();
-        }
-
-        // 2. Buscar por similitud en el nombre
-        List<Career> similarCareers = careerRepository.findByNombreContainingIgnoreCase(careerName.trim());
-        for (Career career : similarCareers) {
-            if (career.getImagenUrl() != null && !career.getImagenUrl().isEmpty()) {
-                return career.getImagenUrl();
-            }
-        }
-
-        // 3. Buscar por keywords
-        String[] words = careerName.toLowerCase().split("\\s+");
-        for (String word : words) {
-            if (word.length() > 3) { // Solo palabras de más de 3 caracteres
-                List<Career> keywordMatches = careerRepository.findByKeywordsContaining(word);
-                for (Career career : keywordMatches) {
-                    if (career.getImagenUrl() != null && !career.getImagenUrl().isEmpty()) {
-                        return career.getImagenUrl();
-                    }
-                }
-            }
-        }
-
-        return getDefaultCareerImage();
-    }
-
     /**
-     * Busca la imagen de una universidad por nombre o similitud
-     */
-    public String findUniversityImage(String universityName) {
-        if (universityName == null || universityName.trim().isEmpty()) {
-            return getDefaultUniversityImage();
-        }
-
-        // 1. Buscar por nombre exacto
-        Optional<University> exactMatch = universityRepository.findByNombre(universityName.trim());
-        if (exactMatch.isPresent() && exactMatch.get().getImagenUrl() != null) {
-            return exactMatch.get().getImagenUrl();
-        }
-
-        // 2. Buscar por similitud en el nombre
-        List<University> similarUniversities = universityRepository.findByNombreContainingIgnoreCase(universityName.trim());
-        for (University university : similarUniversities) {
-            if (university.getImagenUrl() != null && !university.getImagenUrl().isEmpty()) {
-                return university.getImagenUrl();
-            }
-        }
-
-        return getDefaultUniversityImage();
-    }
-
-    /**
-     * Busca información completa de una carrera
+     * Busca información completa de una carrera con una sola consulta
      */
     public Optional<Career> findCareerInfo(String careerName) {
         if (careerName == null || careerName.trim().isEmpty()) {
             return Optional.empty();
         }
 
-        // Buscar por nombre exacto primero
-        Optional<Career> exactMatch = careerRepository.findByNombre(careerName.trim());
+        String cleanName = normalizeSearchText(careerName);
+
+        // 1. Buscar por nombre exacto con el nombre normalizado
+        Optional<Career> exactMatch = careerRepository.findByNombre(cleanName);
         if (exactMatch.isPresent()) {
             return exactMatch;
         }
 
-        // Buscar por similitud
-        List<Career> similarCareers = careerRepository.findByNombreContainingIgnoreCase(careerName.trim());
-        return similarCareers.stream().findFirst();
+        // 2. Buscar por similitud (más permisivo)
+        List<Career> similarCareers = careerRepository.findByNombreContainingIgnoreCase(cleanName);
+        if (!similarCareers.isEmpty()) {
+            return Optional.of(similarCareers.get(0));
+        }
+
+        // 3. Buscar usando palabras clave principales
+        String mainKeyword = extractMainKeyword(cleanName);
+        if (mainKeyword != null && !mainKeyword.isEmpty()) {
+            List<Career> keywordCareers = careerRepository.findByNombreContainingIgnoreCase(mainKeyword);
+            if (!keywordCareers.isEmpty()) {
+                return Optional.of(keywordCareers.get(0));
+            }
+        }
+
+        // 4. Buscar por keywords del modelo
+        String[] words = cleanName.toLowerCase().split("\\s+");
+        for (String word : words) {
+            if (word.length() > 3) {
+                List<Career> keywordMatches = careerRepository.findByKeywordsContaining(word);
+                if (!keywordMatches.isEmpty()) {
+                    return Optional.of(keywordMatches.get(0));
+                }
+            }
+        }
+
+        return Optional.empty();
     }
 
     /**
-     * Busca información completa de una universidad
+     * Busca información completa de una universidad con una sola consulta
      */
     public Optional<University> findUniversityInfo(String universityName) {
         if (universityName == null || universityName.trim().isEmpty()) {
             return Optional.empty();
         }
 
-        // Buscar por nombre exacto primero
-        Optional<University> exactMatch = universityRepository.findByNombre(universityName.trim());
+        String cleanName = normalizeSearchText(universityName);
+
+        // 1. Buscar por nombre exacto con el nombre normalizado
+        Optional<University> exactMatch = universityRepository.findByNombre(cleanName);
         if (exactMatch.isPresent()) {
             return exactMatch;
         }
 
-        // Buscar por similitud
-        List<University> similarUniversities = universityRepository.findByNombreContainingIgnoreCase(universityName.trim());
-        return similarUniversities.stream().findFirst();
+        // 2. Buscar por similitud (más permisivo)
+        List<University> similarUniversities = universityRepository.findByNombreContainingIgnoreCase(cleanName);
+        if (!similarUniversities.isEmpty()) {
+            return Optional.of(similarUniversities.get(0));
+        }
+
+        // 3. Buscar usando palabras clave principales (sin palabras comunes)
+        String mainKeyword = extractMainKeyword(cleanName);
+        if (mainKeyword != null && !mainKeyword.isEmpty()) {
+            List<University> keywordUniversities = universityRepository.findByNombreContainingIgnoreCase(mainKeyword);
+            if (!keywordUniversities.isEmpty()) {
+                return Optional.of(keywordUniversities.get(0));
+            }
+        }
+
+        return Optional.empty();
     }
 
-    private String getDefaultCareerImage() {
-        return "https://images.pexels.com/photos/356030/pexels-photo-356030.jpeg";
+    /**
+     * Normaliza el texto de búsqueda eliminando símbolos y contenido entre paréntesis
+     */
+    private String normalizeSearchText(String text) {
+        if (text == null) {
+            return "";
+        }
+
+        // Eliminar contenido entre paréntesis (ej: "(UNMSM)")
+        String normalized = text.replaceAll("\\([^)]*\\)", "");
+
+        // Eliminar guiones y otros símbolos comunes
+        normalized = normalized.replaceAll("[-_]", " ");
+
+        // Eliminar múltiples espacios y trim
+        normalized = normalized.replaceAll("\\s+", " ").trim();
+
+        return normalized;
     }
 
-    private String getDefaultUniversityImage() {
-        return "https://images.pexels.com/photos/267885/pexels-photo-267885.jpeg";
+    /**
+     * Extrae la palabra clave principal del texto (más larga y significativa)
+     */
+    private String extractMainKeyword(String text) {
+        if (text == null || text.isEmpty()) {
+            return null;
+        }
+
+        // Palabras a ignorar (stopwords comunes en español)
+        String[] stopwords = {"de", "del", "la", "el", "los", "las", "y", "en", "a", "para"};
+
+        String[] words = text.toLowerCase().split("\\s+");
+        String longestWord = "";
+
+        for (String word : words) {
+            // Ignorar stopwords y palabras cortas
+            boolean isStopword = false;
+            for (String stopword : stopwords) {
+                if (word.equals(stopword)) {
+                    isStopword = true;
+                    break;
+                }
+            }
+
+            if (!isStopword && word.length() > longestWord.length() && word.length() > 3) {
+                longestWord = word;
+            }
+        }
+
+        return longestWord;
+    }
+
+    /**
+     * Obtiene la imagen de una carrera o retorna la imagen por defecto
+     */
+    public String getCareerImageOrDefault(Optional<Career> career) {
+        return career
+                .map(Career::getImagenUrl)
+                .filter(url -> url != null && !url.isEmpty())
+                .orElse(DEFAULT_CAREER_IMAGE);
+    }
+
+    /**
+     * Obtiene la imagen de una universidad o retorna la imagen por defecto
+     */
+    public String getUniversityImageOrDefault(Optional<University> university) {
+        return university
+                .map(University::getImagenUrl)
+                .filter(url -> url != null && !url.isEmpty())
+                .orElse(DEFAULT_UNIVERSITY_IMAGE);
+    }
+
+    /**
+     * Obtiene las keywords de una carrera o una lista vacía
+     */
+    public List<String> getCareerKeywordsOrEmpty(Optional<Career> career) {
+        return career
+                .map(Career::getKeywords)
+                .orElse(List.of());
+    }
+
+    /**
+     * Obtiene el país de una universidad o un texto por defecto
+     */
+    public String getUniversityCountryOrDefault(Optional<University> university) {
+        return university
+                .map(University::getPais)
+                .orElse("País no especificado");
     }
 }

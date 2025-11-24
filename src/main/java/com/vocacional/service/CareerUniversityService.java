@@ -3,6 +3,8 @@ package com.vocacional.service;
 import com.vocacional.dto.CareerResponse;
 import com.vocacional.dto.UniversityResponse;
 import com.vocacional.dto.CareerUniversityResponse;
+import com.vocacional.model.Career;
+import com.vocacional.model.University;
 import com.vocacional.model.ChatSession;
 import com.vocacional.model.Message;
 import com.vocacional.repository.ChatSessionRepository;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class CareerUniversityService {
@@ -30,12 +33,18 @@ public class CareerUniversityService {
         - [Nombre de carrera 1]: [Breve descripción] - [Razón de la recomendación]
         - [Nombre de carrera 2]: [Breve descripción] - [Razón de la recomendación]
         - [Nombre de carrera 3]: [Breve descripción] - [Razón de la recomendación]
+        - [Nombre de carrera 4]: [Breve descripción] - [Razón de la recomendación]
+        - [Nombre de carrera 5]: [Breve descripción] - [Razón de la recomendación]
+        - [Nombre de carrera 6]: [Breve descripción] - [Razón de la recomendación]
         - ...
         
         UNIVERSIDADES RECOMENDADAS:
         - [Nombre universidad 1] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
         - [Nombre universidad 2] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
         - [Nombre universidad 3] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
+        - [Nombre universidad 4] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
+        - [Nombre universidad 5] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
+        - [Nombre universidad 6] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
         - ...
         
         IMPORTANTE: 
@@ -47,10 +56,10 @@ public class CareerUniversityService {
 
     // Constantes para parsing
     private static final String UNIVERSITIES_SECTION_HEADER = "UNIVERSIDADES RECOMENDADAS:";
-    private static final String CAREERS_SECTION_HEADER = "CARRERAS RECOMENDADAS:";
     private static final String LINE_PREFIX = "-";
     private static final String DEFAULT_PROXIMITY = "No especificado";
     private static final String DEFAULT_LOCATION = "Ubicación no especificada";
+    private static final String DEFAULT_REASON = "Recomendación basada en el perfil";
 
     public CareerUniversityService(ChatSessionRepository chatSessionRepository,
                                    OpenRouterService openRouterService,
@@ -122,13 +131,13 @@ public class CareerUniversityService {
         return line.trim().startsWith(LINE_PREFIX) && line.contains(":");
     }
 
-    private java.util.Optional<CareerResponse> parseCareerLine(String line) {
+    private Optional<CareerResponse> parseCareerLine(String line) {
         try {
             String content = extractLineContent(line);
             String[] parts = content.split(":", 2);
 
             if (parts.length < 2) {
-                return java.util.Optional.empty();
+                return Optional.empty();
             }
 
             String careerName = parts[0].trim();
@@ -136,25 +145,25 @@ public class CareerUniversityService {
 
             String[] descAndReason = rest.split(" - ", 2);
             String description = descAndReason[0].trim();
-            String reason = descAndReason.length > 1 ? descAndReason[1].trim() : "Recomendación basada en el perfil";
+            String reason = descAndReason.length > 1 ? descAndReason[1].trim() : DEFAULT_REASON;
 
-            String imageUrl = imageSearchService.findCareerImage(careerName);
-            List<String> keywords = imageSearchService.findCareerInfo(careerName)
-                    .map(career -> career.getKeywords())
-                    .orElse(List.of());
+            // UNA SOLA BÚSQUEDA para obtener toda la información
+            Optional<Career> careerInfo = imageSearchService.findCareerInfo(careerName);
+
+            String imageUrl = imageSearchService.getCareerImageOrDefault(careerInfo);
+            List<String> keywords = imageSearchService.getCareerKeywordsOrEmpty(careerInfo);
 
             CareerResponse careerResponse = new CareerResponse(careerName, description, reason, imageUrl);
             careerResponse.setKeywords(keywords);
 
-            return java.util.Optional.of(careerResponse);
+            return Optional.of(careerResponse);
 
         } catch (Exception e) {
-            // Log the error and skip this line
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
     }
 
-    private java.util.Optional<UniversityResponse> parseUniversityLine(String line) {
+    private Optional<UniversityResponse> parseUniversityLine(String line) {
         try {
             String content = extractLineContent(line);
 
@@ -171,7 +180,7 @@ public class CareerUniversityService {
             // Separar nombre/ubicación de carreras ofrecidas
             String[] nameLocationAndCareers = mainContent.split(":", 2);
             if (nameLocationAndCareers.length < 2) {
-                return java.util.Optional.empty();
+                return Optional.empty();
             }
 
             String nameLocation = nameLocationAndCareers[0].trim();
@@ -182,21 +191,21 @@ public class CareerUniversityService {
             String universityName = nameAndLocation[0].trim();
             String location = nameAndLocation.length > 1 ? nameAndLocation[1].trim() : DEFAULT_LOCATION;
 
-            String imageUrl = imageSearchService.findUniversityImage(universityName);
-            String country = imageSearchService.findUniversityInfo(universityName)
-                    .map(university -> university.getPais())
-                    .orElse("País no especificado");
+            // UNA SOLA BÚSQUEDA para obtener toda la información
+            Optional<University> universityInfo = imageSearchService.findUniversityInfo(universityName);
+
+            String imageUrl = imageSearchService.getUniversityImageOrDefault(universityInfo);
+            String country = imageSearchService.getUniversityCountryOrDefault(universityInfo);
 
             UniversityResponse universityResponse = new UniversityResponse(
                     universityName, location, careersOffered, proximity, imageUrl
             );
             universityResponse.setCountry(country);
 
-            return java.util.Optional.of(universityResponse);
+            return Optional.of(universityResponse);
 
         } catch (Exception e) {
-            // Log the error and skip this line
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
     }
 
