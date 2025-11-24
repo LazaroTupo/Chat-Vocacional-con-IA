@@ -161,6 +161,7 @@ public class OpenRouterService {
             - Evita dar respuestas genéricas o predeterminadas
             - Adapta tu enfoque según las respuestas del usuario
             - Mantén un tono profesional pero cercano
+            - Saluda solo la primera vez
             
             Enfócate en ayudar al usuario a:
             1. Identificar sus intereses genuinos
