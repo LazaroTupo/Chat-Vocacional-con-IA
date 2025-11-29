@@ -6,8 +6,10 @@ import com.vocacional.repository.CareerRepository;
 import com.vocacional.repository.UniversityRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ImageSearchService {
@@ -23,85 +25,42 @@ public class ImageSearchService {
         this.universityRepository = universityRepository;
     }
 
-    /**
-     * Busca información completa de una carrera con una sola consulta
-     */
     public Optional<Career> findCareerInfo(String careerName) {
         if (careerName == null || careerName.trim().isEmpty()) {
             return Optional.empty();
         }
 
         String cleanName = normalizeSearchText(careerName);
-
-        // 1. Buscar por nombre exacto con el nombre normalizado
-        Optional<Career> exactMatch = careerRepository.findByNombre(cleanName);
-        if (exactMatch.isPresent()) {
-            return exactMatch;
-        }
-
-        // 2. Buscar por similitud (más permisivo)
-        List<Career> similarCareers = careerRepository.findByNombreContainingIgnoreCase(cleanName);
-        if (!similarCareers.isEmpty()) {
-            return Optional.of(similarCareers.get(0));
-        }
-
-        // 3. Buscar usando palabras clave principales
         String mainKeyword = extractMainKeyword(cleanName);
-        if (mainKeyword != null && !mainKeyword.isEmpty()) {
-            List<Career> keywordCareers = careerRepository.findByNombreContainingIgnoreCase(mainKeyword);
-            if (!keywordCareers.isEmpty()) {
-                return Optional.of(keywordCareers.get(0));
-            }
-        }
+        List<String> searchKeywords = extractSearchKeywords(cleanName);
 
-        // 4. Buscar por keywords del modelo
-        String[] words = cleanName.toLowerCase().split("\\s+");
-        for (String word : words) {
-            if (word.length() > 3) {
-                List<Career> keywordMatches = careerRepository.findByKeywordsContaining(word);
-                if (!keywordMatches.isEmpty()) {
-                    return Optional.of(keywordMatches.get(0));
-                }
-            }
-        }
-
-        return Optional.empty();
+        return careerRepository.findBestCareerMatch(cleanName, mainKeyword, searchKeywords);
     }
 
-    /**
-     * Busca información completa de una universidad con una sola consulta
-     */
     public Optional<University> findUniversityInfo(String universityName) {
         if (universityName == null || universityName.trim().isEmpty()) {
             return Optional.empty();
         }
 
         String cleanName = normalizeSearchText(universityName);
-
-        // 1. Buscar por nombre exacto con el nombre normalizado
-        Optional<University> exactMatch = universityRepository.findByNombre(cleanName);
-        if (exactMatch.isPresent()) {
-            return exactMatch;
-        }
-
-        // 2. Buscar por similitud (más permisivo)
-        List<University> similarUniversities = universityRepository.findByNombreContainingIgnoreCase(cleanName);
-        if (!similarUniversities.isEmpty()) {
-            return Optional.of(similarUniversities.get(0));
-        }
-
-        // 3. Buscar usando palabras clave principales (sin palabras comunes)
         String mainKeyword = extractMainKeyword(cleanName);
-        if (mainKeyword != null && !mainKeyword.isEmpty()) {
-            List<University> keywordUniversities = universityRepository.findByNombreContainingIgnoreCase(mainKeyword);
-            if (!keywordUniversities.isEmpty()) {
-                return Optional.of(keywordUniversities.get(0));
-            }
-        }
+        List<String> searchKeywords = extractSearchKeywords(cleanName);
 
-        return Optional.empty();
+        return universityRepository.findBestUniversityMatch(cleanName, mainKeyword, searchKeywords);
     }
 
+    private List<String> extractSearchKeywords(String text) {
+        if (text == null || text.isEmpty()) {
+            return List.of();
+        }
+
+        String[] stopwords = {"de", "del", "la", "el", "los", "las", "y", "en", "a", "para"};
+
+        return Arrays.stream(text.toLowerCase().split("\\s+"))
+                .filter(word -> word.length() > 3)
+                .filter(word -> Arrays.stream(stopwords).noneMatch(stop -> stop.equals(word)))
+                .collect(Collectors.toList());
+    }
     /**
      * Normaliza el texto de búsqueda eliminando símbolos y contenido entre paréntesis
      */

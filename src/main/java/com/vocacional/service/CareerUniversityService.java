@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 @Service
 public class CareerUniversityService {
@@ -36,7 +37,6 @@ public class CareerUniversityService {
         - [Nombre de carrera 4]: [Breve descripción] - [Razón de la recomendación]
         - [Nombre de carrera 5]: [Breve descripción] - [Razón de la recomendación]
         - [Nombre de carrera 6]: [Breve descripción] - [Razón de la recomendación]
-        - ...
         
         UNIVERSIDADES RECOMENDADAS:
         - [Nombre universidad 1] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
@@ -45,7 +45,6 @@ public class CareerUniversityService {
         - [Nombre universidad 4] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
         - [Nombre universidad 5] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
         - [Nombre universidad 6] - [Ubicación]: Ofrece [carreras ofrecidas] - [Distancia/proximidad]
-        - ...
         
         IMPORTANTE: 
         - Solo listar carreras y universidades basadas en la conversación anterior
@@ -95,8 +94,8 @@ public class CareerUniversityService {
         String[] sections = llmResponse.split(UNIVERSITIES_SECTION_HEADER);
 
         List<CareerResponse> careers = parseCareersSection(sections[0]);
-        List<UniversityResponse> universities = sections.length > 1 ?
-                parseUniversitiesSection(sections[1]) : new ArrayList<>();
+
+        List<UniversityResponse> universities = sections.length > 1 ? parseUniversitiesSection(sections[1]) : new ArrayList<>();
 
         return new CareerUniversityResponse(careers, universities, null);
     }
