@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 @Service
 public class CareerUniversityService {
@@ -22,7 +21,6 @@ public class CareerUniversityService {
     private final OpenRouterService openRouterService;
     private final ImageSearchService imageSearchService;
 
-    // Constantes para el prompt
     private static final String CAREER_PROMPT = """
         Hasta ahora ¿Qué carreras son más tentativas para el usuario?, realizar un listado de cada carrera. 
         También en base a la ubicación descrita por el usuario ¿Qué universidades cerca de esa ubicación tienen disponibles esas carreras?, 
@@ -53,7 +51,6 @@ public class CareerUniversityService {
         - Usar nombres de carreras y universidades comunes y reconocidas
         """;
 
-    // Constantes para parsing
     private static final String UNIVERSITIES_SECTION_HEADER = "UNIVERSIDADES RECOMENDADAS:";
     private static final String LINE_PREFIX = "-";
     private static final String DEFAULT_PROXIMITY = "No especificado";
@@ -146,7 +143,6 @@ public class CareerUniversityService {
             String description = descAndReason[0].trim();
             String reason = descAndReason.length > 1 ? descAndReason[1].trim() : DEFAULT_REASON;
 
-            // UNA SOLA BÚSQUEDA para obtener toda la información
             Optional<Career> careerInfo = imageSearchService.findCareerInfo(careerName);
 
             String imageUrl = imageSearchService.getCareerImageOrDefault(careerInfo);
@@ -166,7 +162,6 @@ public class CareerUniversityService {
         try {
             String content = extractLineContent(line);
 
-            // Separar proximidad
             int lastDashIndex = content.lastIndexOf(" - ");
             String proximity = DEFAULT_PROXIMITY;
             String mainContent = content;
@@ -176,7 +171,6 @@ public class CareerUniversityService {
                 mainContent = content.substring(0, lastDashIndex).trim();
             }
 
-            // Separar nombre/ubicación de carreras ofrecidas
             String[] nameLocationAndCareers = mainContent.split(":", 2);
             if (nameLocationAndCareers.length < 2) {
                 return Optional.empty();
@@ -185,12 +179,10 @@ public class CareerUniversityService {
             String nameLocation = nameLocationAndCareers[0].trim();
             String careersOffered = nameLocationAndCareers[1].replace("Ofrece", "").trim();
 
-            // Separar nombre y ubicación
             String[] nameAndLocation = nameLocation.split(" - ", 2);
             String universityName = nameAndLocation[0].trim();
             String location = nameAndLocation.length > 1 ? nameAndLocation[1].trim() : DEFAULT_LOCATION;
 
-            // UNA SOLA BÚSQUEDA para obtener toda la información
             Optional<University> universityInfo = imageSearchService.findUniversityInfo(universityName);
 
             String imageUrl = imageSearchService.getUniversityImageOrDefault(universityInfo);

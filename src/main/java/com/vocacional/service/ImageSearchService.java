@@ -61,9 +61,7 @@ public class ImageSearchService {
                 .filter(word -> Arrays.stream(stopwords).noneMatch(stop -> stop.equals(word)))
                 .collect(Collectors.toList());
     }
-    /**
-     * Normaliza el texto de búsqueda eliminando símbolos y contenido entre paréntesis
-     */
+
     private String normalizeSearchText(String text) {
         if (text == null) {
             return "";
@@ -81,9 +79,6 @@ public class ImageSearchService {
         return normalized;
     }
 
-    /**
-     * Extrae la palabra clave principal del texto (más larga y significativa)
-     */
     private String extractMainKeyword(String text) {
         if (text == null || text.isEmpty()) {
             return null;
@@ -113,9 +108,6 @@ public class ImageSearchService {
         return longestWord;
     }
 
-    /**
-     * Obtiene la imagen de una carrera o retorna la imagen por defecto
-     */
     public String getCareerImageOrDefault(Optional<Career> career) {
         return career
                 .map(Career::getImagenUrl)
@@ -123,9 +115,6 @@ public class ImageSearchService {
                 .orElse(DEFAULT_CAREER_IMAGE);
     }
 
-    /**
-     * Obtiene la imagen de una universidad o retorna la imagen por defecto
-     */
     public String getUniversityImageOrDefault(Optional<University> university) {
         return university
                 .map(University::getImagenUrl)
@@ -133,18 +122,12 @@ public class ImageSearchService {
                 .orElse(DEFAULT_UNIVERSITY_IMAGE);
     }
 
-    /**
-     * Obtiene las keywords de una carrera o una lista vacía
-     */
     public List<String> getCareerKeywordsOrEmpty(Optional<Career> career) {
         return career
                 .map(Career::getKeywords)
                 .orElse(List.of());
     }
 
-    /**
-     * Obtiene el país de una universidad o un texto por defecto
-     */
     public String getUniversityCountryOrDefault(Optional<University> university) {
         return university
                 .map(University::getPais)

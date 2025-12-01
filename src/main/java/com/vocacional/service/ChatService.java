@@ -32,28 +32,22 @@ public class ChatService {
 
     public ChatResponse processMessage(String userMessage, String userId) {
 
-        // Obtener o crear sesión activa
         ChatSession session = getOrCreateActiveSession(userId);
 
-        // Agregar mensaje del usuario
         Message userMsg = new Message();
         userMsg.setContent(userMessage);
         userMsg.setType(Message.MessageType.USER);
         session.getMessages().add(userMsg);
 
-        // Obtener el historial completo de mensajes para contexto
         List<Message> conversationHistory = session.getMessages();
 
-        // Obtener respuesta del LLM seleccionado
         String llmResponse = openRouterService.getVocationalCoachResponse(userMessage, defaultModel, conversationHistory);
 
-        // Agregar respuesta del sistema con metadata del modelo usado
         Message systemMsg = new Message();
         systemMsg.setContent(llmResponse);
         systemMsg.setType(Message.MessageType.SYSTEM);
         systemMsg.setTimestamp(LocalDateTime.now());
 
-        // Metadata para tracking futuro (extensible)
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("model", defaultModel);
         metadata.put("timestamp", LocalDateTime.now().toString());
@@ -62,7 +56,6 @@ public class ChatService {
         session.getMessages().add(systemMsg);
         session.setUpdatedAt(LocalDateTime.now());
 
-        // Guardar metadata de la sesión con el modelo usado
         if (session.getMetadata() == null) {
             session.setMetadata(new HashMap<>());
         }
