@@ -1,7 +1,7 @@
 services:
   - name: backend
     type: web
-    path: sources/backend
+    path: backend
     plan: free
     region: oregon
     runtime: docker
@@ -18,7 +18,7 @@ services:
 
   - name: frontend
     type: web
-    path: sources/frontend
+    path: frontend
     plan: free
     region: oregon
     runtime: docker
