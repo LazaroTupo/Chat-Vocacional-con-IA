@@ -1,9 +1,10 @@
 services:
   - name: backend
-    runtime: docker
-    dockerfilePath: ./Dockerfile
+    path: sources/backend
     plan: free
     region: oregon
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: SPRING_DATA_MONGODB_URI
         sync: false
@@ -13,3 +14,13 @@ services:
         value: x-ai/grok-4-fast
       - key: JAVA_OPTS
         value: "-Xmx512m"
+
+  - name: frontend
+    path: sources/frontend
+    plan: free
+    region: oregon
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: VITE_API_URL
+        sync: false
