@@ -1,6 +1,7 @@
 services:
   - name: backend
-    path: backend
+    type: web
+    path: sources/backend
     plan: free
     region: oregon
     runtime: docker
@@ -16,7 +17,8 @@ services:
         value: "-Xmx512m"
 
   - name: frontend
-    path: frontend
+    type: web
+    path: sources/frontend
     plan: free
     region: oregon
     runtime: docker
