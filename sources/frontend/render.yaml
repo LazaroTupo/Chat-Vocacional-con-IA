@@ -1,9 +1,0 @@
-services:
-  - name: frontend
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    plan: free
-    region: oregon
-    envVars:
-      - key: VITE_API_URL
-        sync: false

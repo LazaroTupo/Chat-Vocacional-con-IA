@@ -1,0 +1,7 @@
+2026-04-06T06:17:02.482541848Z ==> Cloning from https://github.com/LazaroTupo/Chat-Vocacional-con-IA
+2026-04-06T06:17:06.952116869Z ==> Checking out commit 8b90b7edd443fa2fb38cd9b4abf9294db02a4f09 in branch master
+2026-04-06T06:17:14.941640296Z #1 [internal] load build definition from Dockerfile
+2026-04-06T06:17:15.058656261Z #1 transferring dockerfile: 2B done
+2026-04-06T06:17:15.058673721Z #1 DONE 0.1s
+2026-04-06T06:17:15.278588455Z error: failed to solve: failed to read dockerfile: open Dockerfile: no such file or directory
+2026-04-06T06:17:15.294980758Z error: exit status 1
