@@ -2,8 +2,6 @@ services:
   - name: backend
     type: web
     rootDir: sources/backend
-    plan: free
-    region: oregon
     runtime: docker
     dockerfilePath: ./Dockerfile
     envVars:
@@ -18,15 +16,10 @@ services:
 
   - name: frontend
     type: web
+    runtime: static
     rootDir: sources/frontend
-    plan: free
-    region: oregon
     buildCommand: npm install && npm run build
     staticPublishDir: dist
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
     routes:
       - type: rewrite
         source: /*
