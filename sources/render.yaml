@@ -1,12 +1,10 @@
 services:
   - name: backend
-    type: web
-    rootDir: sources/backend
+    path: backend
     plan: free
     region: oregon
     runtime: docker
     dockerfilePath: ./Dockerfile
-    dockerContext: .
     envVars:
       - key: SPRING_DATA_MONGODB_URI
         sync: false
@@ -22,9 +20,15 @@ services:
     rootDir: sources/frontend
     plan: free
     region: oregon
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    buildCommand: npm run build
+    staticPublishDir: dist
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+    routes:
+      - path: /
+        singlePage: true
     envVars:
       - key: VITE_API_URL
-        sync: false
+        value: https://chat-vocacional-backend.onrender.com
