@@ -1,6 +1,7 @@
 services:
   - name: backend
-    path: backend
+    type: web
+    rootDir: sources/backend
     plan: free
     region: oregon
     runtime: docker
@@ -16,19 +17,20 @@ services:
         value: "-Xmx512m"
 
   - name: frontend
-    type: web
+    type: static
     rootDir: sources/frontend
     plan: free
     region: oregon
-    buildCommand: npm run build
+    buildCommand: npm install && npm run build
     staticPublishDir: dist
     headers:
       - path: /*
         name: X-Frame-Options
         value: DENY
     routes:
-      - path: /
-        singlePage: true
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
         value: https://chat-vocacional-backend.onrender.com
