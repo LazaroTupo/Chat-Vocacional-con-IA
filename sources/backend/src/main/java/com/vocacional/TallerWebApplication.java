@@ -2,6 +2,7 @@ package com.vocacional;
 
 import com.vocacional.model.User;
 import com.vocacional.repository.UserRepository;
+import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,6 +16,18 @@ import java.time.LocalDateTime;
 public class TallerWebApplication {
 
 	public static void main(String[] args) {
+		Dotenv dotenv = Dotenv.configure()
+				.filename(".env")
+				.directory("./")
+				.ignoreIfMalformed()
+				.ignoreIfMissing()
+				.load();
+
+        System.setProperty("SPRING_DATA_MONGODB_URI", dotenv.get("SPRING_DATA_MONGODB_URI"));
+        System.setProperty("OPENROUTER_API_KEY", dotenv.get("OPENROUTER_API_KEY"));
+        System.setProperty("APP_LLM_DEFAULT_MODEL", dotenv.get("APP_LLM_DEFAULT_MODEL", "x-ai/grok-4-fast"));
+        System.setProperty("SERVER_PORT", dotenv.get("SERVER_PORT", "8080"));
+
 		SpringApplication.run(TallerWebApplication.class, args);
 	}
 
