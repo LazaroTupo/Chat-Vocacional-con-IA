@@ -17,7 +17,7 @@ services:
         value: "-Xmx512m"
 
   - name: frontend
-    type: static
+    type: web
     rootDir: sources/frontend
     plan: free
     region: oregon
