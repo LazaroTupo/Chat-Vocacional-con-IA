@@ -27,7 +27,7 @@ export function clearCredentials(): void {
 // Función para verificar si hay credenciales guardadas
 export function isUserLoggedIn(): boolean {
   if (typeof window === 'undefined') return false; // Para SSR
-  
+
   const stored = localStorage.getItem(CREDENTIALS_KEY);
   if (stored) {
     try {
@@ -44,7 +44,7 @@ export function isUserLoggedIn(): boolean {
 // Función para obtener credenciales
 export function getGlobalCredentials(): UserCredentials {
   if (typeof window === 'undefined') return { username: "", password: "" };
-  
+
   const stored = localStorage.getItem(CREDENTIALS_KEY);
   if (stored) {
     try {
@@ -76,7 +76,7 @@ export default function ModalLogin({ setShowModal }: ModalLoginProps) {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -90,19 +90,19 @@ export default function ModalLogin({ setShowModal }: ModalLoginProps) {
       if (response.ok) {
         const data = await response.json();
         console.log("Login exitoso:", data);
-        
+
         // Guardar credenciales en localStorage
         saveCredentials(loginData.username, loginData.password);
-        
+
         // Cerrar modal después de login exitoso
         setShowModal(false);
-        
+
         // Limpiar formulario
         setLoginData({ username: "", password: "" });
-        
+
         // Emitir evento personalizado para notificar el login
         window.dispatchEvent(new CustomEvent('authChange', { detail: { isLoggedIn: true } }));
-        
+
       } else if (response.status === 401) {
         setError("Credenciales inválidas. Por favor, verifica tu usuario y contraseña.");
       } else {
@@ -122,7 +122,7 @@ export default function ModalLogin({ setShowModal }: ModalLoginProps) {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,19 +132,19 @@ export default function ModalLogin({ setShowModal }: ModalLoginProps) {
 
       if (response.status === 201) {
         console.log("Registro exitoso");
-        
+
         // Guardar credenciales en localStorage
         saveCredentials(registerData.username, registerData.password);
-        
+
         // Cerrar modal después de registro exitoso
         setShowModal(false);
-        
+
         // Limpiar formulario
         setRegisterData({ username: "", email: "", password: "" });
-        
+
         // Emitir evento personalizado para notificar el registro
         window.dispatchEvent(new CustomEvent('authChange', { detail: { isLoggedIn: true } }));
-        
+
       } else if (response.status === 400) {
         const errorData = await response.json();
         setError(errorData.message || "El usuario ya existe o datos inválidos.");
@@ -179,22 +179,20 @@ export default function ModalLogin({ setShowModal }: ModalLoginProps) {
         {/* Pestañas */}
         <div className="flex justify-center gap-4 mb-6">
           <button
-            className={`px-6 py-2 font-bold rounded-lg transition ${
-              isLogin
+            className={`px-6 py-2 font-bold rounded-lg transition ${isLogin
                 ? "bg-black text-white"
                 : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-            }`}
+              }`}
             onClick={() => setIsLogin(true)}
             disabled={loading}
           >
             Iniciar Sesión
           </button>
           <button
-            className={`px-6 py-2 font-bold rounded-lg transition ${
-              !isLogin
+            className={`px-6 py-2 font-bold rounded-lg transition ${!isLogin
                 ? "bg-black text-white"
                 : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-            }`}
+              }`}
             onClick={() => setIsLogin(false)}
             disabled={loading}
           >

@@ -5,12 +5,12 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 // Función para obtener la sesión actual del usuario
 export const getCurrentSession = async () => {
   const { username, password } = getGlobalCredentials();
-  
+
   if (!username || !password) {
     throw new Error('Usuario no autenticado');
   }
 
-  const response = await fetch(`${API_BASE_URL}/chat/session`, {
+  const response = await fetch(`${API_BASE_URL}/api/chat/session`, {
     method: 'GET',
     headers: {
       'Authorization': 'Basic ' + btoa(`${username}:${password}`),
@@ -32,12 +32,12 @@ export const getCurrentSession = async () => {
 // Función para enviar mensaje al chat
 export const sendChatMessage = async (message: string) => {
   const { username, password } = getGlobalCredentials();
-  
+
   if (!username || !password) {
     throw new Error('Usuario no autenticado');
   }
 
-  const response = await fetch(`${API_BASE_URL}/chat/message`, {
+  const response = await fetch(`${API_BASE_URL}/api/chat/message`, {
     method: 'POST',
     headers: {
       'Authorization': 'Basic ' + btoa(`${username}:${password}`),
@@ -56,12 +56,12 @@ export const sendChatMessage = async (message: string) => {
 // Función para limpiar la sesión
 export const clearChatSession = async () => {
   const { username, password } = getGlobalCredentials();
-  
+
   if (!username || !password) {
     throw new Error('Usuario no autenticado');
   }
 
-  const response = await fetch(`${API_BASE_URL}/chat/session`, {
+  const response = await fetch(`${API_BASE_URL}/api/chat/session`, {
     method: 'DELETE',
     headers: {
       'Authorization': 'Basic ' + btoa(`${username}:${password}`),
@@ -78,12 +78,12 @@ export const clearChatSession = async () => {
 // Función para obtener recomendaciones de carreras y universidades
 export const getCareerAndUniversityRecommendations = async () => {
   const { username, password } = getGlobalCredentials();
-  
+
   if (!username || !password) {
     throw new Error('Usuario no autenticado');
   }
 
-  const response = await fetch(`${API_BASE_URL}/chat/careers-and-universities`, {
+  const response = await fetch(`${API_BASE_URL}/api/chat/careers-and-universities`, {
     method: 'GET',
     headers: {
       'Authorization': 'Basic ' + btoa(`${username}:${password}`),
